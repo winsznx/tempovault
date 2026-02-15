@@ -1,0 +1,59 @@
+# Environment and secrets
+.env
+.env.local
+.env.production
+.env.*.local
+dashboard/.env
+dashboard/.env.local
+dashboard/.env.production
+
+# Private keys and secrets
+*.pem
+*.key
+*.p12
+*.keystore
+
+# Foundry
+cache/
+out/
+broadcast/
+
+# Dependencies
+node_modules/
+lib/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+lcov.info
+
+# Logs, PIDs, temp output
+logs/
+*.log
+.pids/
+deploy_output.txt
+install.log
+
+# Docker
+docker-compose.override.yml
+
+# Build artifacts
+dashboard/dist/

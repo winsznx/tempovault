@@ -1,0 +1,16 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+solc = "0.8.24"
+optimizer = true
+optimizer_runs = 10000
+via_ir = false
+
+[fuzz]
+runs = 10000
+
+[invariant]
+runs = 256
+depth = 15
+fail_on_revert = true

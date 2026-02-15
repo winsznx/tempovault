@@ -1,0 +1,20 @@
+{
+  "name": "tempovault",
+  "version": "1.0.0",
+  "description": "**Programmable Institutional Stablecoin Treasury Infrastructure on Tempo Chain**",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "ethers": "^6.16.0"
+  }
+}
