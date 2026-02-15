@@ -106,9 +106,7 @@ export function ActiveOrders({ strategyAddress, pairId }: Props) {
     return price.toFixed(5)
   }
 
-  const tickToPercentage = (tick: number) => {
-    return ((tick / 100000) * 100).toFixed(3) + '%'
-  }
+
 
   const orderCount = orderIds?.length ?? 0
   const bestBid = bookData ? Number(bookData[2]) : null
