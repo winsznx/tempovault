@@ -46,12 +46,17 @@ export function Layout({ children }: LayoutProps) {
                     <div className="flex justify-between items-center h-20 px-4">
                         <div className="flex items-center gap-6">
                             <button
-                                onClick={() => navigate('/')}
-                                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                                onClick={() => navigate('/app')}
+                                className="flex items-center gap-3 hover:opacity-80 transition-opacity"
                             >
-                                <div>
-                                    <h1 className="text-2xl font-serif font-bold">TempoVault</h1>
-                                    <p className="text-xs text-text-muted font-sans">Institutional Treasury</p>
+                                <img
+                                    src="/logo.png"
+                                    alt="TempoVault"
+                                    className="w-10 h-10 object-contain rounded-lg"
+                                />
+                                <div className="text-left">
+                                    <h1 className="text-2xl font-serif font-bold leading-none">TempoVault</h1>
+                                    <p className="text-xs text-text-muted font-sans tracking-wide mt-0.5">Institutional Treasury</p>
                                 </div>
                             </button>
                         </div>
