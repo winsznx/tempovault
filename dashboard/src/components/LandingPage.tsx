@@ -430,7 +430,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                   Tempo Protocol Docs ↗
                 </a>
                 <a
-                  href="https://github.com/tempo"
+                  href="https://github.com/winsznx/tempo"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-accent hover:underline block"
