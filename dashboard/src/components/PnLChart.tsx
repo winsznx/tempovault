@@ -1,111 +1,149 @@
-import { useEffect, useState } from 'react'
-
-interface PnLData {
-  vault_id: number
-  token: string
-  total_deposited: string
-  total_withdrawn: string
-  total_deployed: string
-  total_losses: string
-  total_performance_fees: string
-  total_management_fees: string
-  net_pnl: string
-}
+import { useReadContracts } from 'wagmi'
+import { Address, formatUnits } from 'viem'
+import { Card, CardHeader, CardTitle, CardContent } from './ui/Card' // Update import path if needed, assuming existing structure
 
 interface Props {
   vaultId: number
 }
 
-export function PnLChart({ vaultId }: Props) {
-  const [pnlData, setPnlData] = useState<PnLData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+const VAULT_ADDRESS = (import.meta.env.VITE_TREASURY_VAULT_ADDRESS || '') as Address
+const STRATEGY_ADDRESS = (import.meta.env.VITE_DEX_STRATEGY_ADDRESS || '') as Address
+const ALPHA_TOKEN = '0x20c0000000000000000000000000000000000001' as Address
+const PATH_USD = '0x20C0000000000000000000000000000000000000' as Address
+const DEX_ADDRESS = '0xDEc0000000000000000000000000000000000000' as Address
 
-  useEffect(() => {
-    fetchPnL()
-    const interval = setInterval(fetchPnL, 15000)
-    return () => clearInterval(interval)
-  }, [vaultId])
-
-  const fetchPnL = async () => {
-    try {
-      const response = await fetch(`/api/vault/${vaultId}/pnl?token=0x...`)
-      if (!response.ok) {
-        setError(`API error: ${response.status}`)
-        setLoading(false)
-        return
-      }
-      const data = await response.json()
-      setPnlData(data)
-      setError(null)
-      setLoading(false)
-    } catch (err) {
-      console.error('Error fetching P&L:', err)
-      setError(err instanceof Error ? err.message : 'Failed to fetch')
-      setLoading(false)
-    }
+const ERC20_ABI = [
+  {
+    inputs: [{ name: 'account', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function'
   }
+] as const
 
-  const formatValue = (value: string) => {
-    return (Number(value) / 1e18).toFixed(2)
+const DEX_ABI = [
+  {
+    inputs: [
+      { name: 'user', type: 'address' },
+      { name: 'token', type: 'address' }
+    ],
+    name: 'balanceOf',
+    outputs: [{ name: '', type: 'uint128' }],
+    stateMutability: 'view',
+    type: 'function'
   }
+] as const
 
-  if (loading) {
+export function PnLChart({ }: Props) {
+  // Fetch Balances
+  const { data: balances, isLoading } = useReadContracts({
+    contracts: [
+      // 1. Vault Balances (Idle)
+      { address: ALPHA_TOKEN, abi: ERC20_ABI, functionName: 'balanceOf', args: [VAULT_ADDRESS] },
+      { address: PATH_USD, abi: ERC20_ABI, functionName: 'balanceOf', args: [VAULT_ADDRESS] },
+      // 2. Strategy Balances (Undeployed)
+      { address: ALPHA_TOKEN, abi: ERC20_ABI, functionName: 'balanceOf', args: [STRATEGY_ADDRESS] },
+      { address: PATH_USD, abi: ERC20_ABI, functionName: 'balanceOf', args: [STRATEGY_ADDRESS] },
+      // 3. Strategy DEX Balances (Deployed/Escrowed)
+      { address: DEX_ADDRESS, abi: DEX_ABI, functionName: 'balanceOf', args: [STRATEGY_ADDRESS, ALPHA_TOKEN] },
+      { address: DEX_ADDRESS, abi: DEX_ABI, functionName: 'balanceOf', args: [STRATEGY_ADDRESS, PATH_USD] },
+    ]
+  })
+
+  // Parse Data
+  const vaultAlpha = balances?.[0]?.result ?? 0n
+  const vaultPath = balances?.[1]?.result ?? 0n
+  const stratAlpha = balances?.[2]?.result ?? 0n
+  const stratPath = balances?.[3]?.result ?? 0n
+  const dexAlpha = balances?.[4]?.result ?? 0n
+  const dexPath = balances?.[5]?.result ?? 0n
+
+  const totalAlpha = vaultAlpha + stratAlpha + BigInt(dexAlpha)
+  const totalPath = vaultPath + stratPath + BigInt(dexPath)
+
+  // Assume $0.999 for Alpha, $1.00 for PathUSD
+  const totalValueUSD =
+    Number(formatUnits(totalAlpha, 6)) * 0.999 +
+    Number(formatUnits(totalPath, 6))
+
+  const formatVal = (val: bigint) => Number(formatUnits(val, 6)).toLocaleString(undefined, { maximumFractionDigits: 0 })
+
+  if (isLoading) {
     return (
-      <div className="card">
-        <h2 className="text-xl font-bold mb-4">P&L Summary</h2>
-        <div className="text-text-muted">Loading...</div>
-      </div>
+      <Card>
+        <CardHeader><CardTitle>Treasury Composition</CardTitle></CardHeader>
+        <CardContent>Loading...</CardContent>
+      </Card>
     )
   }
-
-  if (error || !pnlData) {
-    return (
-      <div className="card">
-        <h2 className="text-xl font-bold mb-4">P&L Summary</h2>
-        <div className="text-red-400">{error || 'No data available'}</div>
-      </div>
-    )
-  }
-
-  const netPnL = Number(pnlData.net_pnl) / 1e18
-  const isProfitable = netPnL >= 0
 
   return (
-    <div className="card">
-      <h2 className="text-xl font-bold mb-4">P&L Summary</h2>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex justify-between items-center">
+          <span>Treasury Composition</span>
+          <span className="text-2xl font-mono text-green-400">
+            ${totalValueUSD.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+          </span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Vault (Idle) */}
+          <div className="p-4 bg-surface rounded-lg border border-border/50">
+            <h3 className="text-text-muted text-sm font-semibold mb-3">Vault (Idle)</h3>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span>AlphaUSD</span>
+                <span className="font-mono">{formatVal(vaultAlpha)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>PathUSD</span>
+                <span className="font-mono">{formatVal(vaultPath)}</span>
+              </div>
+            </div>
+          </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div>
-          <div className="text-text-muted text-sm">Total Deposited</div>
-          <div className="text-lg font-semibold">{formatValue(pnlData.total_deposited)} USD</div>
-        </div>
-        <div>
-          <div className="text-text-muted text-sm">Total Withdrawn</div>
-          <div className="text-lg font-semibold">{formatValue(pnlData.total_withdrawn)} USD</div>
-        </div>
-        <div>
-          <div className="text-text-muted text-sm">Total Losses</div>
-          <div className="text-lg font-semibold text-red-400">{formatValue(pnlData.total_losses)} USD</div>
-        </div>
-        <div>
-          <div className="text-text-muted text-sm">Net P&L</div>
-          <div className={`text-lg font-semibold ${isProfitable ? 'text-green-400' : 'text-red-400'}`}>
-            {isProfitable ? '+' : ''}{netPnL.toFixed(2)} USD
+          {/* Strategy (Deployed) */}
+          <div className="p-4 bg-surface rounded-lg border border-border/50">
+            <h3 className="text-text-muted text-sm font-semibold mb-3">Strategy (Wallet)</h3>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span>AlphaUSD</span>
+                <span className="font-mono">{formatVal(stratAlpha)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>PathUSD</span>
+                <span className="font-mono">{formatVal(stratPath)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* DEX (Escrowed) */}
+          <div className="p-4 bg-surface rounded-lg border border-border/50">
+            <h3 className="text-text-muted text-sm font-semibold mb-3">DEX (Active Orders)</h3>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span>AlphaUSD</span>
+                <span className="font-mono">{formatVal(BigInt(dexAlpha))}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>PathUSD</span>
+                <span className="font-mono">{formatVal(BigInt(dexPath))}</span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <div className="text-text-muted text-sm">Performance Fees</div>
-          <div className="text-lg font-semibold text-yellow-400">{formatValue(pnlData.total_performance_fees)} USD</div>
+        <div className="mt-6 pt-4 border-t border-border">
+          <div className="flex justify-between text-sm text-text-muted">
+            <span>Total AlphaUSD Exposure: <span className="text-text font-mono">{formatVal(totalAlpha)}</span></span>
+            <span>Total PathUSD Exposure: <span className="text-text font-mono">{formatVal(totalPath)}</span></span>
+          </div>
         </div>
-        <div>
-          <div className="text-text-muted text-sm">Management Fees</div>
-          <div className="text-lg font-semibold text-yellow-400">{formatValue(pnlData.total_management_fees)} USD</div>
-        </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   )
 }
+
